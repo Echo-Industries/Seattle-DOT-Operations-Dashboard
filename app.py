@@ -57,6 +57,21 @@ def login_required(handler):
     return wrapped
 
 
+def is_sdot_team_member(user, players):
+    user_id = str(user.get("id", ""))
+    user_name = str(user.get("name", "")).casefold()
+    for player in players:
+        if not isinstance(player, dict) or player.get("Team") != SDOT_TEAM_NAME:
+            continue
+
+        player_value = str(player.get("Player", ""))
+        player_name, _, player_id = player_value.partition(":")
+        known_id = str(player.get("UserId") or player.get("UserID") or player.get("id") or player_id)
+        if (known_id and known_id == user_id) or player_name.casefold() == user_name:
+            return True
+    return False
+
+
 def sdot_team_member(user):
     """Verify that the user is a member of the SDOT team in ER:LC."""
     if not ERLC_API_KEY or ERLC_API_KEY == "server_key_here":
@@ -73,17 +88,8 @@ def sdot_team_member(user):
     except (requests.RequestException, ValueError, AttributeError):
         return False, "Unable to verify your current ER:LC team membership."
 
-    user_id = str(user.get("id", ""))
-    user_name = str(user.get("name", "")).casefold()
-    for player in players:
-        if not isinstance(player, dict) or player.get("Team") != SDOT_TEAM_NAME:
-            continue
-
-        player_value = str(player.get("Player", ""))
-        player_name, _, player_id = player_value.partition(":")
-        known_id = str(player.get("UserId") or player.get("UserID") or player.get("id") or player_id)
-        if (known_id and known_id == user_id) or player_name.casefold() == user_name:
-            return True, None
+    if is_sdot_team_member(user, players):
+        return True, None
 
     return False, f"You must be on the {SDOT_TEAM_NAME} team in ER:LC to publish a record."
 
@@ -211,13 +217,15 @@ def list_records():
 @app.route("/api/records", methods=["POST"])
 @login_required
 def publish_record():
-    """Publishes a new road closure or safety event record."""
+    """Publishes a new road closure or tow/impound record."""
     import json
 
     record = request.get_json(silent=True) or {}
     required_fields = {"id", "category"}
     if not required_fields.issubset(record):
         return jsonify({"error": "Record id and category are required."}), 400
+    if not isinstance(record["category"], str) or record["category"] not in {"fire", "tow"}:
+        return jsonify({"error": "Record category must be road closure or tow/impound."}), 400
 
     user = current_user()
     is_sdot_member, membership_error = sdot_team_member(user)
@@ -282,6 +290,7 @@ def get_erlc_status():
             }), response.status_code
 
         data = response.json()
+        data["isSdotMember"] = is_sdot_team_member(current_user(), data.get("Players", []))
         return jsonify(data)
 
     except requests.exceptions.RequestException as e:

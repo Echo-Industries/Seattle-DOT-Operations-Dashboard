@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seattle DOT Corridor Command</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/SDOT_Logo_BG_Removed.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -44,15 +45,11 @@
         .brand-badge {
             width: 2.5rem;
             height: 2.5rem;
-            border-radius: 0.9rem;
-            background: linear-gradient(135deg, #0ea5e9, #0f172a 70%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            letter-spacing: 0.05em;
-            color: white;
-            box-shadow: 0 0 20px rgba(14,165,233,0.25);
+            object-fit: contain;
+        }
+        .log-control:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
         }
         .nav-btn.active {
             background: linear-gradient(135deg, #0ea5e9, #0284c7);
@@ -80,7 +77,7 @@
 <body class="min-h-screen flex flex-col">
     <header class="bg-darkcard border-b border-darkborder sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
         <div class="flex items-center space-x-3">
-            <div class="brand-badge">SDOT</div>
+            <img src="{{ url_for('static', filename='images/SDOT_Logo_BG_Removed.png') }}" alt="Seattle DOT logo" class="brand-badge">
             <div>
                 <h1 class="font-bold text-lg tracking-wider text-white">SEATTLE DOT</h1>
                 <p class="text-xs text-sky-400 font-semibold tracking-widest uppercase">Traffic Operations Center</p>
@@ -93,9 +90,11 @@
                 <span class="text-neutral-400">Dispatcher:</span>
                 <span id="currentUserName" class="text-white font-medium">Seattle Ops Center</span>
             </div>
+            <span id="sdotTeamStatus" class="text-xs text-amber-400">Verifying in-game team...</span>
             <div class="relative">
                 <button id="accountButton" type="button" onclick="toggleAccountMenu()" class="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 px-2 py-1.5 rounded-lg text-sm text-white">
-                    <div class="w-7 h-7 rounded-md bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-[10px] font-bold text-sky-300">S</div>
+                    <img id="accountAvatar" alt="Roblox profile headshot" class="hidden w-7 h-7 rounded-md object-cover">
+                    <i id="accountAvatarFallback" class="fa-solid fa-user w-7 h-7 rounded-md bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-xs text-sky-300"></i>
                     <i class="fa-solid fa-chevron-down text-[10px] text-neutral-400"></i>
                 </button>
                 <div id="accountMenu" class="hidden absolute right-0 top-12 z-50 w-56 bg-neutral-950 border border-neutral-800 rounded-xl p-3 shadow-2xl">
@@ -114,13 +113,13 @@
                     <i class="fa-solid fa-chart-pie w-5 text-sky-400"></i>
                     <span>Dashboard</span>
                 </button>
-                <button onclick="switchTab('fire-log')" id="nav-fire-log" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
+                <button onclick="switchTab('fire-log')" id="nav-fire-log" class="nav-btn log-control w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white" disabled>
                     <i class="fa-solid fa-road-barrier w-5 text-sky-400"></i>
                     <span>Log Road Closure</span>
                 </button>
-                <button onclick="switchTab('med-log')" id="nav-med-log" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
-                    <i class="fa-solid fa-shield-heart w-5 text-emerald-500"></i>
-                    <span>Log Safety Event</span>
+                <button onclick="switchTab('tow-log')" id="nav-tow-log" class="nav-btn log-control w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white" disabled>
+                    <i class="fa-solid fa-truck-ramp-box w-5 text-amber-500"></i>
+                    <span>Log Tow / Impound</span>
                 </button>
                 <button onclick="switchTab('records')" id="nav-records" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
                     <i class="fa-solid fa-folder-open w-5 text-amber-500"></i>
@@ -159,11 +158,11 @@
                         <p class="text-sm text-neutral-400">Real-time transit, street, and incident system summaries.</p>
                     </div>
                     <div class="flex items-center space-x-3">
-                        <button onclick="switchTab('fire-log')" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-2">
+                        <button onclick="switchTab('fire-log')" class="log-control bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-2" disabled>
                             <i class="fa-solid fa-plus"></i><span>New Road Closure</span>
                         </button>
-                        <button onclick="switchTab('med-log')" class="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-2">
-                            <i class="fa-solid fa-plus"></i><span>New Safety Event</span>
+                        <button onclick="switchTab('tow-log')" class="log-control bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-2" disabled>
+                            <i class="fa-solid fa-plus"></i><span>New Tow / Impound</span>
                         </button>
                     </div>
                 </div>
@@ -184,27 +183,27 @@
 
                     <div class="bg-darkcard p-5 rounded-2xl glow-card">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Safety Event Records</span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Tow / Impound Records</span>
                             <div class="w-10 h-10 rounded-xl bg-emerald-950/60 text-emerald-500 flex items-center justify-center border border-emerald-900/30">
-                                <i class="fa-solid fa-shield-heart text-lg"></i>
+                                <i class="fa-solid fa-truck-ramp-box text-lg"></i>
                             </div>
                         </div>
                         <div class="mt-4 flex items-baseline">
-                            <span id="kpiTotalMeds" class="text-3xl font-bold text-white">0</span>
-                            <span class="ml-2 text-xs text-neutral-400">Starting at SAF00001</span>
+                            <span id="kpiTotalTows" class="text-3xl font-bold text-white">0</span>
+                            <span class="ml-2 text-xs text-neutral-400">Starting at TOW00001</span>
                         </div>
                     </div>
 
                     <div class="bg-darkcard p-5 rounded-2xl glow-card">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Response Clearance Rate</span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Impound Actions</span>
                             <div class="w-10 h-10 rounded-xl bg-cyan-950/60 text-cyan-500 flex items-center justify-center border border-cyan-900/30">
-                                <i class="fa-solid fa-heart-pulse text-lg"></i>
+                                <i class="fa-solid fa-car-burst text-lg"></i>
                             </div>
                         </div>
                         <div class="mt-4 flex items-baseline">
-                            <span id="kpiSurvivalRate" class="text-3xl font-bold text-white">100%</span>
-                            <span class="ml-2 text-xs text-emerald-400 font-medium">Stable</span>
+                            <span id="kpiImpoundActions" class="text-3xl font-bold text-white">0</span>
+                            <span class="ml-2 text-xs text-neutral-400 font-medium">Logged</span>
                         </div>
                     </div>
 
@@ -251,8 +250,8 @@
                     <div class="bg-darkcard p-6 rounded-2xl glow-card">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold text-white flex items-center space-x-2">
-                                <i class="fa-solid fa-shield-heart text-emerald-500"></i>
-                                <span>Recent Safety Events</span>
+                                <i class="fa-solid fa-truck-ramp-box text-amber-500"></i>
+                                <span>Recent Tows / Impounds</span>
                             </h3>
                             <button onclick="switchTab('records')" class="text-xs text-emerald-500 hover:text-emerald-400 font-medium">View All</button>
                         </div>
@@ -261,13 +260,13 @@
                                 <thead class="border-b border-darkborder text-xs text-neutral-500 uppercase">
                                     <tr>
                                         <th class="py-2 px-3">Case #</th>
+                                        <th class="py-2 px-3">Vehicle</th>
                                         <th class="py-2 px-3">Location</th>
-                                        <th class="py-2 px-3">Condition</th>
-                                        <th class="py-2 px-3">Resolved</th>
+                                        <th class="py-2 px-3">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody id="recentMedTableBody" class="divide-y divide-darkborder text-neutral-300">
-                                    <tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No safety events recorded yet.</td></tr>
+                                <tbody id="recentTowTableBody" class="divide-y divide-darkborder text-neutral-300">
+                                    <tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No tow or impound records yet.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -332,55 +331,64 @@
                 </form>
             </section>
 
-            <section id="tab-med-log" class="tab-content hidden space-y-6 max-w-3xl mx-auto">
+            <section id="tab-tow-log" class="tab-content hidden space-y-6 max-w-3xl mx-auto">
                 <div>
-                    <h2 class="text-2xl font-bold tracking-tight text-white">Log Safety Event</h2>
-                    <p class="text-sm text-neutral-400">Document roadway safety and mobility incidents. Case number is auto-assigned sequentially.</p>
+                    <h2 class="text-2xl font-bold tracking-tight text-white">Log Tow / Impound</h2>
+                    <p class="text-sm text-neutral-400">Record vehicle tows, impounds, and releases. Case number is auto-assigned sequentially.</p>
                 </div>
 
-                <form id="medReportForm" onsubmit="submitMedicalReport(event)" class="bg-darkcard p-6 md:p-8 rounded-2xl glow-card space-y-6">
+                <form id="towReportForm" onsubmit="submitTowReport(event)" class="bg-darkcard p-6 md:p-8 rounded-2xl glow-card space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Assigned Case Number</label>
-                            <input type="text" id="medCaseNum" readonly class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
+                            <input type="text" id="towCaseNum" readonly class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-amber-500">
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Reporting Type</label>
-                            <select id="medPatientType" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500">
-                                <option value="NPC">Pedestrian / Public</option>
-                                <option value="User">Transit / Staff / Traveler</option>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Action</label>
+                            <select id="towAction" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500">
+                                <option value="Tow">Tow</option>
+                                <option value="Impound">Impound</option>
+                                <option value="Release">Release</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Condition or Issue</label>
-                            <input type="text" id="medCondition" placeholder="e.g. Signal failure, obstruction, crossing incident" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Vehicle</label>
+                            <input type="text" id="towVehicle" placeholder="Vehicle make, model, or description" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500">
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Was the issue resolved?</label>
-                            <select id="medSurvived" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500">
-                                <option value="Yes">Yes (Clear / Stabilized)</option>
-                                <option value="No">No (Ongoing / Escalated)</option>
-                            </select>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Vehicle Owner / Roblox Username</label>
+                            <input type="text" id="towOwner" placeholder="Owner name, if known" class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Pickup Location</label>
+                            <input type="text" id="towLocation" placeholder="Street, intersection, or landmark" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Reason</label>
+                            <input type="text" id="towReason" placeholder="e.g. obstruction, abandoned, collision" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500">
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Other Crews Responded</label>
-                        <div id="medUnits" class="unit-picker"></div>
-                        <p class="text-[11px] text-neutral-500 mt-1">Your signed-in Seattle operations account is automatically recorded.</p>
+                        <div id="towUnits" class="unit-picker"></div>
+                        <p class="text-[11px] text-neutral-500 mt-1">Your signed-in Roblox account is automatically recorded.</p>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Optional Notes & Response Provided</label>
-                        <textarea id="medNotes" rows="3" placeholder="Enter dispatch notes, signal status, or mitigation steps..." class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500"></textarea>
+                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Optional Notes</label>
+                        <textarea id="towNotes" rows="3" placeholder="Enter dispatch notes or impound details..." class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500"></textarea>
                     </div>
 
                     <div class="flex justify-end space-x-3 pt-4 border-t border-darkborder">
                         <button type="button" onclick="switchTab('dashboard')" class="px-5 py-2.5 rounded-xl text-sm font-medium bg-neutral-900 text-neutral-300 hover:bg-neutral-800 transition">Cancel</button>
-                        <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition">Publish Safety Event</button>
+                        <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700 transition">Publish Tow / Impound</button>
                     </div>
                 </form>
             </section>
@@ -399,7 +407,7 @@
                         <select id="recordFilterType" onchange="filterRecords()" class="bg-darkcard border border-darkborder rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                             <option value="all">All Records</option>
                             <option value="fire">Road Closures</option>
-                            <option value="medical">Safety Events</option>
+                            <option value="tow">Tow / Impound</option>
                         </select>
                     </div>
                 </div>
@@ -439,7 +447,7 @@
 
                 <div class="bg-darkcard p-4 rounded-2xl glow-card border border-darkborder flex flex-col items-center justify-center">
                     <div class="relative w-full max-w-4xl overflow-hidden rounded-xl border border-neutral-800 bg-black flex items-center justify-center">
-                        <img src="{{ url_for('static', filename='images/Firefighter-Tactical-Map-Asset.png') }}" alt="Seattle DOT tactical map asset" class="w-full h-auto object-contain max-h-[75vh] opacity-90">
+                        <img src="{{ url_for('static', filename='images/SDOT_Utility_Map.png') }}" alt="Seattle DOT utility map" class="w-full h-auto object-contain max-h-[75vh] opacity-90">
                     </div>
                 </div>
             </section>
@@ -510,7 +518,7 @@
             <section id="tab-analytics" class="tab-content hidden space-y-6">
                 <div>
                     <h2 class="text-2xl font-bold tracking-tight text-white">Department Analytics & Reports</h2>
-                    <p class="text-sm text-neutral-400">Interactive charts for closure patterns and safety resolution trends.</p>
+                    <p class="text-sm text-neutral-400">Interactive charts for closure patterns and tow / impound activity.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -522,9 +530,9 @@
                     </div>
 
                     <div class="bg-darkcard p-6 rounded-2xl glow-card">
-                        <h3 class="font-bold text-white mb-4 text-sm">Safety Resolution Rate</h3>
+                        <h3 class="font-bold text-white mb-4 text-sm">Tow / Impound Disposition</h3>
                         <div class="h-64 flex items-center justify-center">
-                            <canvas id="medSurvivalChart"></canvas>
+                            <canvas id="towDispositionChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -535,16 +543,17 @@
     <script>
         let appState = {
             fires: [],
-            medicals: [],
+            tows: [],
             activeUnits: [],
             userName: '',
             fireSeq: 1,
-            medSeq: 1
+            towSeq: 1,
+            isSdotMember: false
         };
 
         let charts = {
             fire: null,
-            med: null
+            tow: null
         };
 
         let erlcSyncInFlight = false;
@@ -559,6 +568,10 @@
         });
 
         function switchTab(tabId) {
+            if ((tabId === 'fire-log' || tabId === 'tow-log') && !appState.isSdotMember) {
+                alert('You must be on the SDOT team in ER:LC to create logs.');
+                return;
+            }
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.nav-btn').forEach(el => {
                 el.classList.remove('active', 'bg-sky-600', 'text-white', 'glow-blue');
@@ -605,7 +618,7 @@
                     const inputId = `unit-${index}-${escapeHtml(unit.id)}`;
                     return `<label for="${inputId}" class="flex items-center gap-3 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800 cursor-pointer"><input id="${inputId}" type="checkbox" value="${safeName}" class="accent-sky-500"><span>${safeName}</span></label>`;
                 }).join('');
-            ['fireUnits', 'medUnits'].forEach(id => {
+            ['fireUnits', 'towUnits'].forEach(id => {
                 document.getElementById(id).innerHTML = `<details><summary><span class="unit-picker-label">Choose active units</span><i class="fa-solid fa-chevron-down float-right text-neutral-400 text-[10px]"></i></summary><div class="max-h-52 overflow-y-auto py-1">${content}</div></details>`;
             });
             updateUnitPickerLabels();
@@ -626,13 +639,13 @@
 
         function updateCaseNumberFields() {
             const fireNum = 'RD-' + String(appState.fireSeq).padStart(5, '0');
-            const medNum = 'SAF' + String(appState.medSeq).padStart(5, '0');
+            const towNum = 'TOW' + String(appState.towSeq).padStart(5, '0');
 
             const fireField = document.getElementById('fireCaseNum');
-            const medField = document.getElementById('medCaseNum');
+            const towField = document.getElementById('towCaseNum');
 
             if (fireField) fireField.value = fireNum;
-            if (medField) medField.value = medNum;
+            if (towField) towField.value = towNum;
         }
 
         async function submitFireReport(e) {
@@ -662,28 +675,30 @@
             switchTab('dashboard');
         }
 
-        async function submitMedicalReport(e) {
+        async function submitTowReport(e) {
             e.preventDefault();
             const userName = appState.userName;
-            const otherUnits = selectedUnitNames('medUnits');
+            const otherUnits = selectedUnitNames('towUnits');
             const unitsResponded = [userName, ...otherUnits].filter(Boolean).join(', ');
 
             const newReport = {
-                id: 'SAF' + String(appState.medSeq).padStart(5, '0'),
-                category: 'medical',
-                patientType: document.getElementById('medPatientType').value,
-                condition: document.getElementById('medCondition').value,
-                survived: document.getElementById('medSurvived').value,
+                id: 'TOW' + String(appState.towSeq).padStart(5, '0'),
+                category: 'tow',
+                action: document.getElementById('towAction').value,
+                vehicle: document.getElementById('towVehicle').value,
+                owner: document.getElementById('towOwner').value,
+                location: document.getElementById('towLocation').value,
+                reason: document.getElementById('towReason').value,
                 units: unitsResponded,
-                notes: document.getElementById('medNotes').value,
+                notes: document.getElementById('towNotes').value,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })
             };
 
             if (!await publishRecord(newReport)) return;
-            appState.medSeq++;
+            appState.towSeq++;
             await loadRecords();
             updateCaseNumberFields();
-            document.getElementById('medReportForm').reset();
+            document.getElementById('towReportForm').reset();
             clearUnitPickers();
             updateDashboard();
             switchTab('dashboard');
@@ -691,15 +706,8 @@
 
         function updateDashboard() {
             document.getElementById('kpiTotalFires').innerText = appState.fires.length;
-            document.getElementById('kpiTotalMeds').innerText = appState.medicals.length;
-
-            if (appState.medicals.length > 0) {
-                const survivedCount = appState.medicals.filter(m => m.survived === 'Yes').length;
-                const rate = Math.round((survivedCount / appState.medicals.length) * 100);
-                document.getElementById('kpiSurvivalRate').innerText = rate + '%';
-            } else {
-                document.getElementById('kpiSurvivalRate').innerText = '100%';
-            }
+            document.getElementById('kpiTotalTows').innerText = appState.tows.length;
+            document.getElementById('kpiImpoundActions').innerText = appState.tows.filter(tow => tow.action === 'Impound').length;
 
             const fireBody = document.getElementById('recentFireTableBody');
             if (appState.fires.length === 0) {
@@ -715,16 +723,16 @@
                 `).join('');
             }
 
-            const medBody = document.getElementById('recentMedTableBody');
-            if (appState.medicals.length === 0) {
-                medBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No safety events recorded yet.</td></tr>`;
+            const towBody = document.getElementById('recentTowTableBody');
+            if (appState.tows.length === 0) {
+                towBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No tow or impound records yet.</td></tr>`;
             } else {
-                medBody.innerHTML = appState.medicals.slice(0, 5).map(m => `
+                towBody.innerHTML = appState.tows.slice(0, 5).map(tow => `
                     <tr class="hover:bg-neutral-900/50">
-                        <td class="py-3 px-3 font-mono text-emerald-500 font-semibold">${m.id}</td>
-                        <td class="py-3 px-3">${m.patientType}</td>
-                        <td class="py-3 px-3 truncate max-w-[140px]" title="${m.condition}">${m.condition}</td>
-                        <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-xs ${m.survived === 'Yes' ? 'bg-emerald-950 text-emerald-400' : 'bg-red-950 text-red-400'}">${m.survived}</span></td>
+                        <td class="py-3 px-3 font-mono text-amber-500 font-semibold">${escapeHtml(tow.id)}</td>
+                        <td class="py-3 px-3">${escapeHtml(tow.vehicle)}</td>
+                        <td class="py-3 px-3 truncate max-w-[140px]" title="${escapeHtml(tow.location)}">${escapeHtml(tow.location)}</td>
+                        <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-xs bg-amber-950 text-amber-400">${escapeHtml(tow.action)}</span></td>
                     </tr>
                 `).join('');
             }
@@ -737,7 +745,7 @@
 
             let allRecords = [
                 ...appState.fires.map(f => ({ ...f, displayType: 'Road Closure', detail: `${f.type} incident (${f.damage} impact, ${f.extTime}m)` })),
-                ...appState.medicals.map(m => ({ ...m, displayType: 'Safety Event', detail: `${m.condition} [Resolved: ${m.survived}]` }))
+                ...appState.tows.map(tow => ({ ...tow, displayType: 'Tow / Impound', detail: `${tow.action}: ${tow.vehicle} at ${tow.location} (${tow.reason})` }))
             ];
 
             allRecords.sort((a, b) => b.id.localeCompare(a.id));
@@ -761,11 +769,11 @@
 
             tableBody.innerHTML = allRecords.map(r => `
                 <tr class="hover:bg-neutral-900/50 transition">
-                    <td class="py-3 px-4 font-mono font-bold ${r.category === 'fire' ? 'text-sky-500' : 'text-emerald-500'}">${r.id}</td>
-                    <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${r.category === 'fire' ? 'bg-sky-950/80 text-sky-400 border border-sky-900/40' : 'bg-emerald-950/80 text-emerald-400 border border-emerald-900/40'}">${r.displayType}</span></td>
-                    <td class="py-3 px-4 text-white">${r.detail}</td>
-                    <td class="py-3 px-4 text-neutral-400">${r.units}</td>
-                    <td class="py-3 px-4 text-neutral-400 text-xs">${r.timestamp}</td>
+                    <td class="py-3 px-4 font-mono font-bold ${r.category === 'fire' ? 'text-sky-500' : 'text-emerald-500'}">${escapeHtml(r.id)}</td>
+                    <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${r.category === 'fire' ? 'bg-sky-950/80 text-sky-400 border border-sky-900/40' : 'bg-emerald-950/80 text-emerald-400 border border-emerald-900/40'}">${escapeHtml(r.displayType)}</span></td>
+                    <td class="py-3 px-4 text-white">${escapeHtml(r.detail)}</td>
+                    <td class="py-3 px-4 text-neutral-400">${escapeHtml(r.units)}</td>
+                    <td class="py-3 px-4 text-neutral-400 text-xs">${escapeHtml(r.timestamp)}</td>
                     <td class="py-3 px-4 text-right">
                         ${r.publishedById === appState.userId ? `<button onclick="deleteRecord('${r.id}')" class="text-neutral-500 hover:text-red-500 transition px-2 py-1" title="Delete record">Delete</button>` : '<span class="text-neutral-600 text-xs">Read-only</span>'}
                     </td>
@@ -814,18 +822,18 @@
                 }
             });
 
-            const survivedYes = appState.medicals.filter(m => m.survived === 'Yes').length;
-            const survivedNo = appState.medicals.filter(m => m.survived === 'No').length;
+            const towActions = ['Tow', 'Impound', 'Release'];
+            const towActionCounts = towActions.map(action => appState.tows.filter(tow => tow.action === action).length);
 
-            const medCanvas = document.getElementById('medSurvivalChart').getContext('2d');
-            if (charts.med) charts.med.destroy();
-            charts.med = new Chart(medCanvas, {
-                type: 'pie',
+            const towCanvas = document.getElementById('towDispositionChart').getContext('2d');
+            if (charts.tow) charts.tow.destroy();
+            charts.tow = new Chart(towCanvas, {
+                type: 'doughnut',
                 data: {
-                    labels: ['Resolved', 'Escalated'],
+                    labels: towActions,
                     datasets: [{
-                        data: [survivedYes || 1, survivedNo],
-                        backgroundColor: ['#10b981', '#ef4444'],
+                        data: towActionCounts,
+                        backgroundColor: ['#f59e0b', '#ef4444', '#10b981'],
                         borderWidth: 0
                     }]
                 },
@@ -853,6 +861,7 @@
                 const data = await res.json();
 
                 if (!res.ok || data.error) {
+                    setTeamMembership(false);
                     const notConfigured = data.error && data.error.includes('not configured');
                     setERLCStatus(notConfigured ? 'Not configured' : 'Offline / Error', notConfigured ? 'text-amber-400' : 'text-red-400');
                     document.getElementById('kpiActiveUnits').innerText = '--';
@@ -862,6 +871,7 @@
                 }
 
                 const players = Array.isArray(data.Players) ? data.Players : [];
+                setTeamMembership(data.isSdotMember === true);
                 const emergencyCalls = Array.isArray(data.EmergencyCalls) ? data.EmergencyCalls : [];
                 const serverName = data.ServerName || data.Name || data.Server || '--';
                 setERLCStatus('Connected', 'text-emerald-400', serverName, players.length, emergencyCalls.length);
@@ -899,6 +909,7 @@
                 }
             } catch (err) {
                 console.error('ERLC Sync Error:', err);
+                setTeamMembership(false);
                 setERLCStatus('Offline / Error', 'text-red-400');
                 document.getElementById('kpiActiveUnits').innerText = '--';
                 document.getElementById('erlcUnitsTable').innerHTML = `<tr><td colspan="5" class="py-6 text-center text-red-400 text-xs">Unable to reach the live operations API.</td></tr>`;
@@ -911,9 +922,9 @@
             const response = await fetch('/api/records');
             const records = await response.json();
             appState.fires = records.filter(record => record.category === 'fire');
-            appState.medicals = records.filter(record => record.category === 'medical');
+            appState.tows = records.filter(record => record.category === 'tow');
             appState.fireSeq = Math.max(0, ...appState.fires.map(record => Number(record.id.replace(/\D/g, '')))) + 1;
-            appState.medSeq = Math.max(0, ...appState.medicals.map(record => Number(record.id.replace(/\D/g, '')))) + 1;
+            appState.towSeq = Math.max(0, ...appState.tows.map(record => Number(record.id.replace(/\D/g, '')))) + 1;
             updateCaseNumberFields();
             updateDashboard();
             renderRecordsTable();
@@ -930,7 +941,24 @@
             appState.userName = data.user.name;
             document.getElementById('currentUserName').textContent = data.user.name;
             document.getElementById('accountMenuName').textContent = data.user.name;
-            document.getElementById('accountAvatar')?.setAttribute('src', data.user.avatarUrl || 'https://tr.rbxcdn.com/30DAY-AvatarHeadshot-150-150-Png/150/150/AvatarHeadshot/Webp/noFilter');
+            if (data.user.avatarUrl) {
+                const avatar = document.getElementById('accountAvatar');
+                avatar.onerror = () => {
+                    avatar.classList.add('hidden');
+                    document.getElementById('accountAvatarFallback').classList.remove('hidden');
+                };
+                avatar.src = data.user.avatarUrl;
+                avatar.classList.remove('hidden');
+                document.getElementById('accountAvatarFallback').classList.add('hidden');
+            }
+        }
+
+        function setTeamMembership(isMember) {
+            appState.isSdotMember = isMember;
+            document.querySelectorAll('.log-control').forEach(control => { control.disabled = !isMember; });
+            const status = document.getElementById('sdotTeamStatus');
+            status.textContent = isMember ? 'SDOT team verified' : 'Join SDOT in-game to log';
+            status.className = isMember ? 'text-xs text-emerald-400' : 'text-xs text-amber-400';
         }
 
         async function publishRecord(record) {
