@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seattle DOT Corridor Command</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: '#020817',
+                        darkcard: '#0b1220',
+                        darkborder: '#1f2937',
+                        accentblue: '#0ea5e9',
+                        accentcyan: '#22d3ee',
+                        accentgreen: '#10b981',
+                        accentglow: 'rgba(14, 165, 233, 0.15)'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #020817 0%, #020b16 100%);
+            color: #e2e8f0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #020817; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        .glow-blue { box-shadow: 0 0 25px rgba(14, 165, 233, 0.2); }
+        .glow-card { box-shadow: 0 4px 20px rgba(2, 8, 23, 0.9); border: 1px solid #1f2937; }
+        .unit-picker details { background: #111827; border: 1px solid #1f2937; border-radius: 0.75rem; }
+        .unit-picker summary { cursor: pointer; list-style: none; padding: 0.75rem 1rem; color: #cbd5e1; font-size: 0.875rem; }
+        .unit-picker summary::-webkit-details-marker { display: none; }
+        .unit-picker details[open] summary { border-bottom: 1px solid #1f2937; }
+        .brand-badge {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.9rem;
+            background: linear-gradient(135deg, #0ea5e9, #0f172a 70%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            color: white;
+            box-shadow: 0 0 20px rgba(14,165,233,0.25);
+        }
+        .nav-btn.active {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: white;
+            box-shadow: 0 0 18px rgba(14,165,233,0.28);
+        }
+        .bg-blue-600 { background-color: #0ea5e9 !important; }
+        .hover\:bg-blue-700:hover { background-color: #0369a1 !important; }
+        .text-blue-500 { color: #38bdf8 !important; }
+        .text-blue-400 { color: #7dd3fc !important; }
+        .border-blue-900\/30 { border-color: rgba(14, 165, 233, 0.35) !important; }
+        .bg-blue-950 { background-color: rgba(8, 47, 73, 0.9) !important; }
+        .bg-blue-950\/60 { background-color: rgba(8, 47, 73, 0.6) !important; }
+        .bg-blue-950\/80 { background-color: rgba(8, 47, 73, 0.8) !important; }
+        .text-cyan-500 { color: #22d3ee !important; }
+        .text-cyan-400 { color: #67e8f9 !important; }
+        .bg-cyan-950\/60 { background-color: rgba(8, 51, 67, 0.6) !important; }
+        .border-cyan-900\/30 { border-color: rgba(34, 211, 238, 0.3) !important; }
+        .bg-emerald-950\/60 { background-color: rgba(6, 78, 59, 0.6) !important; }
+        .border-emerald-900\/30 { border-color: rgba(16, 185, 129, 0.25) !important; }
+        .text-emerald-500 { color: #34d399 !important; }
+        .text-emerald-400 { color: #6ee7b7 !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <header class="bg-darkcard border-b border-darkborder sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="brand-badge">SDOT</div>
+            <div>
+                <h1 class="font-bold text-lg tracking-wider text-white">SEATTLE DOT</h1>
+                <p class="text-xs text-sky-400 font-semibold tracking-widest uppercase">Traffic Operations Center</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <div class="hidden md:flex items-center space-x-2 bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-lg text-xs">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-neutral-400">Dispatcher:</span>
+                <span id="currentUserName" class="text-white font-medium">Seattle Ops Center</span>
+            </div>
+            <div class="relative">
+                <button id="accountButton" type="button" onclick="toggleAccountMenu()" class="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 px-2 py-1.5 rounded-lg text-sm text-white">
+                    <div class="w-7 h-7 rounded-md bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-[10px] font-bold text-sky-300">S</div>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-neutral-400"></i>
+                </button>
+                <div id="accountMenu" class="hidden absolute right-0 top-12 z-50 w-56 bg-neutral-950 border border-neutral-800 rounded-xl p-3 shadow-2xl">
+                    <p class="text-[11px] uppercase tracking-wider text-neutral-500">Signed in as</p>
+                    <p id="accountMenuName" class="text-sm text-white font-semibold truncate mt-1"></p>
+                    <a href="/auth/logout" class="mt-3 block text-center bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 px-3 py-2 rounded-lg text-xs font-medium transition">Sign out</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex flex-col md:flex-row">
+        <aside class="w-full md:w-64 bg-darkcard border-r border-darkborder p-4 flex flex-row md:flex-col justify-between overflow-x-auto">
+            <nav class="flex md:flex-col space-x-2 md:space-x-0 md:space-y-1 w-full">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-white">
+                    <i class="fa-solid fa-chart-pie w-5 text-sky-400"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="switchTab('fire-log')" id="nav-fire-log" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
+                    <i class="fa-solid fa-road-barrier w-5 text-sky-400"></i>
+                    <span>Log Road Closure</span>
+                </button>
+                <button onclick="switchTab('med-log')" id="nav-med-log" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
+                    <i class="fa-solid fa-shield-heart w-5 text-emerald-500"></i>
+                    <span>Log Safety Event</span>
+                </button>
+                <button onclick="switchTab('records')" id="nav-records" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
+                    <i class="fa-solid fa-folder-open w-5 text-amber-500"></i>
+                    <span>Search Records</span>
+                </button>
+                <button onclick="switchTab('map')" id="nav-map" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
+                    <i class="fa-solid fa-map-location-dot w-5 text-cyan-500"></i>
+                    <span>Signal Map</span>
+                </button>
+                <button onclick="switchTab('erlc-hub')" id="nav-erlc-hub" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
+                    <i class="fa-solid fa-tower-broadcast w-5 text-violet-500"></i>
+                    <span>Live Corridor Hub</span>
+                </button>
+                <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center space-x-3 transition text-neutral-400 hover:bg-neutral-900 hover:text-white">
+                    <i class="fa-solid fa-chart-line w-5 text-cyan-500"></i>
+                    <span>Analytics</span>
+                </button>
+            </nav>
+
+            <div class="hidden md:block pt-4 border-t border-darkborder mt-auto">
+                <div class="bg-neutral-900/60 p-3 rounded-xl border border-darkborder text-xs text-neutral-400">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-white font-medium">System Status</span>
+                        <span id="serverStatusBadge" class="text-emerald-400 font-semibold">Online</span>
+                    </div>
+                    <p class="text-[11px] text-neutral-500">Connected to City Network</p>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-8 overflow-y-auto">
+            <section id="tab-dashboard" class="tab-content space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold tracking-tight text-white">Network Overview</h2>
+                        <p class="text-sm text-neutral-400">Real-time transit, street, and incident system summaries.</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="switchTab('fire-log')" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-2">
+                            <i class="fa-solid fa-plus"></i><span>New Road Closure</span>
+                        </button>
+                        <button onclick="switchTab('med-log')" class="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-2">
+                            <i class="fa-solid fa-plus"></i><span>New Safety Event</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-darkcard p-5 rounded-2xl glow-card">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Total Road Incidents</span>
+                            <div class="w-10 h-10 rounded-xl bg-sky-950/60 text-sky-500 flex items-center justify-center border border-sky-900/30">
+                                <i class="fa-solid fa-road text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span id="kpiTotalFires" class="text-3xl font-bold text-white">0</span>
+                            <span class="ml-2 text-xs text-neutral-400" id="kpiFireRange">Starting at RD-00001</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-darkcard p-5 rounded-2xl glow-card">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Safety Event Records</span>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-950/60 text-emerald-500 flex items-center justify-center border border-emerald-900/30">
+                                <i class="fa-solid fa-shield-heart text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span id="kpiTotalMeds" class="text-3xl font-bold text-white">0</span>
+                            <span class="ml-2 text-xs text-neutral-400">Starting at SAF00001</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-darkcard p-5 rounded-2xl glow-card">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Response Clearance Rate</span>
+                            <div class="w-10 h-10 rounded-xl bg-cyan-950/60 text-cyan-500 flex items-center justify-center border border-cyan-900/30">
+                                <i class="fa-solid fa-heart-pulse text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span id="kpiSurvivalRate" class="text-3xl font-bold text-white">100%</span>
+                            <span class="ml-2 text-xs text-emerald-400 font-medium">Stable</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-darkcard p-5 rounded-2xl glow-card">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Active Crews on Duty</span>
+                            <div class="w-10 h-10 rounded-xl bg-amber-950/60 text-amber-500 flex items-center justify-center border border-amber-900/30">
+                                <i class="fa-solid fa-truck-ramp-box text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span id="kpiActiveUnits" class="text-3xl font-bold text-white">--</span>
+                            <span class="ml-2 text-xs text-neutral-400">Signals & crews</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-darkcard p-6 rounded-2xl glow-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-road-barrier text-sky-500"></i>
+                                <span>Recent Road Closures</span>
+                            </h3>
+                            <button onclick="switchTab('records')" class="text-xs text-sky-500 hover:text-sky-400 font-medium">View All</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="border-b border-darkborder text-xs text-neutral-500 uppercase">
+                                    <tr>
+                                        <th class="py-2 px-3">Case #</th>
+                                        <th class="py-2 px-3">Type</th>
+                                        <th class="py-2 px-3">Impact</th>
+                                        <th class="py-2 px-3">Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentFireTableBody" class="divide-y divide-darkborder text-neutral-300">
+                                    <tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No road closure records yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-darkcard p-6 rounded-2xl glow-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-shield-heart text-emerald-500"></i>
+                                <span>Recent Safety Events</span>
+                            </h3>
+                            <button onclick="switchTab('records')" class="text-xs text-emerald-500 hover:text-emerald-400 font-medium">View All</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="border-b border-darkborder text-xs text-neutral-500 uppercase">
+                                    <tr>
+                                        <th class="py-2 px-3">Case #</th>
+                                        <th class="py-2 px-3">Location</th>
+                                        <th class="py-2 px-3">Condition</th>
+                                        <th class="py-2 px-3">Resolved</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentMedTableBody" class="divide-y divide-darkborder text-neutral-300">
+                                    <tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No safety events recorded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-fire-log" class="tab-content hidden space-y-6 max-w-3xl mx-auto">
+                <div>
+                    <h2 class="text-2xl font-bold tracking-tight text-white">Log Road Incident</h2>
+                    <p class="text-sm text-neutral-400">Document roadway disruptions and closure details. Case number is auto-assigned sequentially.</p>
+                </div>
+
+                <form id="fireReportForm" onsubmit="submitFireReport(event)" class="bg-darkcard p-6 md:p-8 rounded-2xl glow-card space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Assigned Case Number</label>
+                            <input type="text" id="fireCaseNum" readonly class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-sky-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Incident Type</label>
+                            <select id="fireType" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-sky-600">
+                                <option value="Structure">Street Closure</option>
+                                <option value="Brush">Utility Work</option>
+                                <option value="Dumpster">Signal Outage</option>
+                                <option value="Vehicle">Vehicle Collision</option>
+                                <option value="Industrial">Construction / Detour</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Estimated Clearance Time (Minutes)</label>
+                            <input type="number" id="fireExtTime" min="1" value="15" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-sky-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Impact Severity</label>
+                            <select id="fireDamage" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-sky-600">
+                                <option value="Low">Low (Minor disruption)</option>
+                                <option value="Medium" selected>Medium (Traffic impact)</option>
+                                <option value="High">High (Major detour / closure)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Other Crews Responded</label>
+                        <div id="fireUnits" class="unit-picker"></div>
+                        <p class="text-[11px] text-neutral-500 mt-1">Your signed-in Seattle operations account is automatically recorded.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Optional Notes & Remarks</label>
+                        <textarea id="fireNotes" rows="3" placeholder="Enter lane conditions, advisory status, or detour notes..." class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-sky-600"></textarea>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-darkborder">
+                        <button type="button" onclick="switchTab('dashboard')" class="px-5 py-2.5 rounded-xl text-sm font-medium bg-neutral-900 text-neutral-300 hover:bg-neutral-800 transition">Cancel</button>
+                        <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-sky-600 text-white hover:bg-sky-700 transition glow-blue">Publish Closure Event</button>
+                    </div>
+                </form>
+            </section>
+
+            <section id="tab-med-log" class="tab-content hidden space-y-6 max-w-3xl mx-auto">
+                <div>
+                    <h2 class="text-2xl font-bold tracking-tight text-white">Log Safety Event</h2>
+                    <p class="text-sm text-neutral-400">Document roadway safety and mobility incidents. Case number is auto-assigned sequentially.</p>
+                </div>
+
+                <form id="medReportForm" onsubmit="submitMedicalReport(event)" class="bg-darkcard p-6 md:p-8 rounded-2xl glow-card space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Assigned Case Number</label>
+                            <input type="text" id="medCaseNum" readonly class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Reporting Type</label>
+                            <select id="medPatientType" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+                                <option value="NPC">Pedestrian / Public</option>
+                                <option value="User">Transit / Staff / Traveler</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Condition or Issue</label>
+                            <input type="text" id="medCondition" placeholder="e.g. Signal failure, obstruction, crossing incident" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Was the issue resolved?</label>
+                            <select id="medSurvived" required class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+                                <option value="Yes">Yes (Clear / Stabilized)</option>
+                                <option value="No">No (Ongoing / Escalated)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Other Crews Responded</label>
+                        <div id="medUnits" class="unit-picker"></div>
+                        <p class="text-[11px] text-neutral-500 mt-1">Your signed-in Seattle operations account is automatically recorded.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Optional Notes & Response Provided</label>
+                        <textarea id="medNotes" rows="3" placeholder="Enter dispatch notes, signal status, or mitigation steps..." class="w-full bg-neutral-900 border border-darkborder rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500"></textarea>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-darkborder">
+                        <button type="button" onclick="switchTab('dashboard')" class="px-5 py-2.5 rounded-xl text-sm font-medium bg-neutral-900 text-neutral-300 hover:bg-neutral-800 transition">Cancel</button>
+                        <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition">Publish Safety Event</button>
+                    </div>
+                </form>
+            </section>
+
+            <section id="tab-records" class="tab-content hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold tracking-tight text-white">Incident Records & Search</h2>
+                        <p class="text-sm text-neutral-400">Search, browse, and inspect all roadway and mobility-related reports.</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-neutral-500 text-sm"></i>
+                            <input type="text" id="recordSearchInput" oninput="filterRecords()" placeholder="Search case #, crews, type..." class="bg-darkcard border border-darkborder rounded-xl pl-10 pr-3 py-2 text-sm text-white focus:outline-none focus:border-sky-600">
+                        </div>
+                        <select id="recordFilterType" onchange="filterRecords()" class="bg-darkcard border border-darkborder rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                            <option value="all">All Records</option>
+                            <option value="fire">Road Closures</option>
+                            <option value="medical">Safety Events</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-darkcard rounded-2xl glow-card overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-neutral-900/80 border-b border-darkborder text-xs text-neutral-400 uppercase">
+                                <tr>
+                                    <th class="py-3 px-4">Case #</th>
+                                    <th class="py-3 px-4">Category</th>
+                                    <th class="py-3 px-4">Details / Condition</th>
+                                    <th class="py-3 px-4">Crews Responded</th>
+                                    <th class="py-3 px-4">Timestamp</th>
+                                    <th class="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="masterRecordsTable" class="divide-y divide-darkborder text-neutral-300">
+                                <tr><td colspan="6" class="py-8 text-center text-neutral-500">No records found in database.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-map" class="tab-content hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold tracking-tight text-white">Signal Infrastructure & Corridor Map</h2>
+                        <p class="text-sm text-neutral-400">Seattle street grid showing signals, cameras, barriers, and active work zones.</p>
+                    </div>
+                    <div class="flex items-center space-x-2 bg-darkcard border border-darkborder px-3 py-1.5 rounded-xl text-xs text-neutral-400">
+                        <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+                        <span>Street Asset Map Loaded: Seattle, WA</span>
+                    </div>
+                </div>
+
+                <div class="bg-darkcard p-4 rounded-2xl glow-card border border-darkborder flex flex-col items-center justify-center">
+                    <div class="relative w-full max-w-4xl overflow-hidden rounded-xl border border-neutral-800 bg-black flex items-center justify-center">
+                        <img src="{{ url_for('static', filename='images/Firefighter-Tactical-Map-Asset.png') }}" alt="Seattle DOT tactical map asset" class="w-full h-auto object-contain max-h-[75vh] opacity-90">
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-erlc-hub" class="tab-content hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold tracking-tight text-white">City Operations Live Hub</h2>
+                        <p class="text-sm text-neutral-400">Live active personnel, dispatches, and city system telemetry from the operations network.</p>
+                    </div>
+                    <div class="flex items-center space-x-2 bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl text-xs text-neutral-400">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Live city sync</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-darkcard p-6 rounded-2xl glow-card lg:col-span-2 space-y-4">
+                        <h3 class="font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-users text-violet-500"></i>
+                            <span>Active Street & Signal Personnel</span>
+                        </h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="border-b border-darkborder text-xs text-neutral-500 uppercase">
+                                    <tr>
+                                        <th class="py-2 px-3">Person</th>
+                                        <th class="py-2 px-3">Callsign</th>
+                                        <th class="py-2 px-3">Team</th>
+                                        <th class="py-2 px-3">Unit</th>
+                                        <th class="py-2 px-3">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="erlcUnitsTable" class="divide-y divide-darkborder text-neutral-300">
+                                    <tr><td colspan="5" class="py-6 text-center text-neutral-500 text-xs">Connecting to the live city operations server...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-darkcard p-6 rounded-2xl glow-card space-y-4">
+                        <h3 class="font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-tower-cell text-cyan-500"></i>
+                            <span>System API Status</span>
+                        </h3>
+                        <div class="space-y-3 text-xs text-neutral-400">
+                            <div class="flex justify-between py-2 border-b border-darkborder">
+                                <span>Proxy Connection:</span>
+                                <span id="proxyState" class="text-amber-400 font-medium">Connecting...</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-darkborder">
+                                <span>Service Name:</span>
+                                <span id="serverNameLabel" class="text-white font-medium">--</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-darkborder">
+                                <span>Total Operators:</span>
+                                <span id="serverPlayerCount" class="text-white font-medium">--</span>
+                            </div>
+                            <div class="flex justify-between py-2">
+                                <span>Active Calls:</span>
+                                <span id="serverCallCount" class="text-white font-medium">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-analytics" class="tab-content hidden space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold tracking-tight text-white">Department Analytics & Reports</h2>
+                    <p class="text-sm text-neutral-400">Interactive charts for closure patterns and safety resolution trends.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-darkcard p-6 rounded-2xl glow-card">
+                        <h3 class="font-bold text-white mb-4 text-sm">Incident Type Distribution</h3>
+                        <div class="h-64 flex items-center justify-center">
+                            <canvas id="fireTypeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-darkcard p-6 rounded-2xl glow-card">
+                        <h3 class="font-bold text-white mb-4 text-sm">Safety Resolution Rate</h3>
+                        <div class="h-64 flex items-center justify-center">
+                            <canvas id="medSurvivalChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let appState = {
+            fires: [],
+            medicals: [],
+            activeUnits: [],
+            userName: '',
+            fireSeq: 1,
+            medSeq: 1
+        };
+
+        let charts = {
+            fire: null,
+            med: null
+        };
+
+        let erlcSyncInFlight = false;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadAuth();
+            await loadRecords();
+            await syncERLCData();
+            window.setInterval(syncERLCData, 5000);
+            updateCaseNumberFields();
+            updateDashboard();
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('active', 'bg-sky-600', 'text-white', 'glow-blue');
+                el.classList.add('text-neutral-400', 'hover:bg-neutral-900', 'hover:text-white');
+            });
+
+            const targetTab = document.getElementById(`tab-${tabId}`);
+            const targetNav = document.getElementById(`nav-${tabId}`);
+
+            if (targetTab) targetTab.classList.remove('hidden');
+            if (targetNav) {
+                targetNav.classList.remove('text-neutral-400', 'hover:bg-neutral-900', 'hover:text-white');
+                targetNav.classList.add('active', 'text-white');
+            }
+
+            if (tabId === 'records') renderRecordsTable();
+            if (tabId === 'analytics') renderAnalyticsCharts();
+        }
+
+        function toggleAccountMenu() {
+            const menu = document.getElementById('accountMenu');
+            const button = document.getElementById('accountButton');
+            const isHidden = menu.classList.toggle('hidden');
+            button.setAttribute('aria-expanded', String(!isHidden));
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>'"]/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[character]));
+        }
+
+        function selectedUnitNames(pickerId) {
+            return [...document.querySelectorAll(`#${pickerId} input[type="checkbox"]:checked`)].map(input => input.value);
+        }
+
+        function renderUnitPickers() {
+            const selected = new Set([...selectedUnitNames(), ...(appState.selectedUnits || [])]);
+            const availableUnits = appState.activeUnits.filter(unit => unit.name !== appState.userName);
+            const content = availableUnits.length === 0
+                ? '<p class="px-4 pb-3 text-xs text-neutral-500">No other Street or Signal units are currently active.</p>'
+                : availableUnits.map((unit, index) => {
+                    const safeName = escapeHtml(unit.name);
+                    const inputId = `unit-${index}-${escapeHtml(unit.id)}`;
+                    return `<label for="${inputId}" class="flex items-center gap-3 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800 cursor-pointer"><input id="${inputId}" type="checkbox" value="${safeName}" class="accent-sky-500"><span>${safeName}</span></label>`;
+                }).join('');
+            ['fireUnits', 'medUnits'].forEach(id => {
+                document.getElementById(id).innerHTML = `<details><summary><span class="unit-picker-label">Choose active units</span><i class="fa-solid fa-chevron-down float-right text-neutral-400 text-[10px]"></i></summary><div class="max-h-52 overflow-y-auto py-1">${content}</div></details>`;
+            });
+            updateUnitPickerLabels();
+        }
+
+        function updateUnitPickerLabels() {
+            document.querySelectorAll('.unit-picker').forEach(picker => {
+                const names = [...picker.querySelectorAll('input:checked')].map(input => input.value);
+                const label = picker.querySelector('.unit-picker-label');
+                if (label) label.textContent = names.length ? `${names.length} active unit${names.length === 1 ? '' : 's'} selected` : 'Choose active units';
+            });
+        }
+
+        function clearUnitPickers() {
+            document.querySelectorAll('.unit-picker input[type="checkbox"]').forEach(input => { input.checked = false; });
+            updateUnitPickerLabels();
+        }
+
+        function updateCaseNumberFields() {
+            const fireNum = 'RD-' + String(appState.fireSeq).padStart(5, '0');
+            const medNum = 'SAF' + String(appState.medSeq).padStart(5, '0');
+
+            const fireField = document.getElementById('fireCaseNum');
+            const medField = document.getElementById('medCaseNum');
+
+            if (fireField) fireField.value = fireNum;
+            if (medField) medField.value = medNum;
+        }
+
+        async function submitFireReport(e) {
+            e.preventDefault();
+            const userName = appState.userName;
+            const otherUnits = selectedUnitNames('fireUnits');
+            const unitsResponded = [userName, ...otherUnits].filter(Boolean).join(', ');
+
+            const newReport = {
+                id: 'RD-' + String(appState.fireSeq).padStart(5, '0'),
+                category: 'fire',
+                type: document.getElementById('fireType').value,
+                extTime: document.getElementById('fireExtTime').value,
+                damage: document.getElementById('fireDamage').value,
+                units: unitsResponded,
+                notes: document.getElementById('fireNotes').value,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })
+            };
+
+            if (!await publishRecord(newReport)) return;
+            appState.fireSeq++;
+            await loadRecords();
+            updateCaseNumberFields();
+            document.getElementById('fireReportForm').reset();
+            clearUnitPickers();
+            updateDashboard();
+            switchTab('dashboard');
+        }
+
+        async function submitMedicalReport(e) {
+            e.preventDefault();
+            const userName = appState.userName;
+            const otherUnits = selectedUnitNames('medUnits');
+            const unitsResponded = [userName, ...otherUnits].filter(Boolean).join(', ');
+
+            const newReport = {
+                id: 'SAF' + String(appState.medSeq).padStart(5, '0'),
+                category: 'medical',
+                patientType: document.getElementById('medPatientType').value,
+                condition: document.getElementById('medCondition').value,
+                survived: document.getElementById('medSurvived').value,
+                units: unitsResponded,
+                notes: document.getElementById('medNotes').value,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })
+            };
+
+            if (!await publishRecord(newReport)) return;
+            appState.medSeq++;
+            await loadRecords();
+            updateCaseNumberFields();
+            document.getElementById('medReportForm').reset();
+            clearUnitPickers();
+            updateDashboard();
+            switchTab('dashboard');
+        }
+
+        function updateDashboard() {
+            document.getElementById('kpiTotalFires').innerText = appState.fires.length;
+            document.getElementById('kpiTotalMeds').innerText = appState.medicals.length;
+
+            if (appState.medicals.length > 0) {
+                const survivedCount = appState.medicals.filter(m => m.survived === 'Yes').length;
+                const rate = Math.round((survivedCount / appState.medicals.length) * 100);
+                document.getElementById('kpiSurvivalRate').innerText = rate + '%';
+            } else {
+                document.getElementById('kpiSurvivalRate').innerText = '100%';
+            }
+
+            const fireBody = document.getElementById('recentFireTableBody');
+            if (appState.fires.length === 0) {
+                fireBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No road closure records yet.</td></tr>`;
+            } else {
+                fireBody.innerHTML = appState.fires.slice(0, 5).map(f => `
+                    <tr class="hover:bg-neutral-900/50">
+                        <td class="py-3 px-3 font-mono text-sky-500 font-semibold">${f.id}</td>
+                        <td class="py-3 px-3">${f.type}</td>
+                        <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-xs ${f.damage === 'High' ? 'bg-sky-950 text-sky-400' : 'bg-neutral-800 text-neutral-300'}">${f.damage}</span></td>
+                        <td class="py-3 px-3 text-neutral-400 text-xs">${f.timestamp}</td>
+                    </tr>
+                `).join('');
+            }
+
+            const medBody = document.getElementById('recentMedTableBody');
+            if (appState.medicals.length === 0) {
+                medBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-neutral-500 text-xs">No safety events recorded yet.</td></tr>`;
+            } else {
+                medBody.innerHTML = appState.medicals.slice(0, 5).map(m => `
+                    <tr class="hover:bg-neutral-900/50">
+                        <td class="py-3 px-3 font-mono text-emerald-500 font-semibold">${m.id}</td>
+                        <td class="py-3 px-3">${m.patientType}</td>
+                        <td class="py-3 px-3 truncate max-w-[140px]" title="${m.condition}">${m.condition}</td>
+                        <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-xs ${m.survived === 'Yes' ? 'bg-emerald-950 text-emerald-400' : 'bg-red-950 text-red-400'}">${m.survived}</span></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function renderRecordsTable() {
+            const tableBody = document.getElementById('masterRecordsTable');
+            const search = document.getElementById('recordSearchInput').value.toLowerCase();
+            const filter = document.getElementById('recordFilterType').value;
+
+            let allRecords = [
+                ...appState.fires.map(f => ({ ...f, displayType: 'Road Closure', detail: `${f.type} incident (${f.damage} impact, ${f.extTime}m)` })),
+                ...appState.medicals.map(m => ({ ...m, displayType: 'Safety Event', detail: `${m.condition} [Resolved: ${m.survived}]` }))
+            ];
+
+            allRecords.sort((a, b) => b.id.localeCompare(a.id));
+
+            if (filter !== 'all') {
+                allRecords = allRecords.filter(r => r.category === filter);
+            }
+
+            if (search) {
+                allRecords = allRecords.filter(r => 
+                    r.id.toLowerCase().includes(search) ||
+                    r.units.toLowerCase().includes(search) ||
+                    r.detail.toLowerCase().includes(search)
+                );
+            }
+
+            if (allRecords.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-neutral-500">No matching records found.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = allRecords.map(r => `
+                <tr class="hover:bg-neutral-900/50 transition">
+                    <td class="py-3 px-4 font-mono font-bold ${r.category === 'fire' ? 'text-sky-500' : 'text-emerald-500'}">${r.id}</td>
+                    <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${r.category === 'fire' ? 'bg-sky-950/80 text-sky-400 border border-sky-900/40' : 'bg-emerald-950/80 text-emerald-400 border border-emerald-900/40'}">${r.displayType}</span></td>
+                    <td class="py-3 px-4 text-white">${r.detail}</td>
+                    <td class="py-3 px-4 text-neutral-400">${r.units}</td>
+                    <td class="py-3 px-4 text-neutral-400 text-xs">${r.timestamp}</td>
+                    <td class="py-3 px-4 text-right">
+                        ${r.publishedById === appState.userId ? `<button onclick="deleteRecord('${r.id}')" class="text-neutral-500 hover:text-red-500 transition px-2 py-1" title="Delete record">Delete</button>` : '<span class="text-neutral-600 text-xs">Read-only</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterRecords() {
+            renderRecordsTable();
+        }
+
+        async function deleteRecord(id) {
+            if (!confirm(`Are you sure you want to delete record ${id}?`)) return;
+            const response = await fetch(`/api/records/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const error = await response.json();
+                alert(error.error || 'Unable to delete this record.');
+                return;
+            }
+            await loadRecords();
+        }
+
+        function renderAnalyticsCharts() {
+            const fireTypes = { Structure: 0, Brush: 0, Dumpster: 0, Vehicle: 0, Industrial: 0 };
+            appState.fires.forEach(f => {
+                if (fireTypes[f.type] !== undefined) fireTypes[f.type]++;
+                else fireTypes[f.type] = 1;
+            });
+
+            const fireCanvas = document.getElementById('fireTypeChart').getContext('2d');
+            if (charts.fire) charts.fire.destroy();
+            charts.fire = new Chart(fireCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(fireTypes),
+                    datasets: [{
+                        data: Object.values(fireTypes),
+                        backgroundColor: ['#0ea5e9', '#38bdf8', '#22d3ee', '#14b8a6', '#8b5cf6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#a3a3a3', boxWidth: 12 } } }
+                }
+            });
+
+            const survivedYes = appState.medicals.filter(m => m.survived === 'Yes').length;
+            const survivedNo = appState.medicals.filter(m => m.survived === 'No').length;
+
+            const medCanvas = document.getElementById('medSurvivalChart').getContext('2d');
+            if (charts.med) charts.med.destroy();
+            charts.med = new Chart(medCanvas, {
+                type: 'pie',
+                data: {
+                    labels: ['Resolved', 'Escalated'],
+                    datasets: [{
+                        data: [survivedYes || 1, survivedNo],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#a3a3a3', boxWidth: 12 } } }
+                }
+            });
+        }
+
+        function setERLCStatus(status, className, serverName = '--', playerCount = '--', callCount = '--') {
+            document.getElementById('proxyState').innerText = status;
+            document.getElementById('proxyState').className = `${className} font-medium`;
+            document.getElementById('serverNameLabel').innerText = serverName;
+            document.getElementById('serverPlayerCount').innerText = playerCount;
+            document.getElementById('serverCallCount').innerText = callCount;
+        }
+
+        async function syncERLCData() {
+            if (erlcSyncInFlight) return;
+            erlcSyncInFlight = true;
+            try {
+                const res = await fetch('/api/erlc/status', { cache: 'no-store' });
+                const data = await res.json();
+
+                if (!res.ok || data.error) {
+                    const notConfigured = data.error && data.error.includes('not configured');
+                    setERLCStatus(notConfigured ? 'Not configured' : 'Offline / Error', notConfigured ? 'text-amber-400' : 'text-red-400');
+                    document.getElementById('kpiActiveUnits').innerText = '--';
+                    const errorMessage = notConfigured ? 'Configure ERLC_SERVER_KEY in your .env file.' : 'The city network is unavailable.';
+                    document.getElementById('erlcUnitsTable').innerHTML = `<tr><td colspan="5" class="py-6 text-center ${notConfigured ? 'text-amber-500' : 'text-red-400'} text-xs">${errorMessage}</td></tr>`;
+                    return;
+                }
+
+                const players = Array.isArray(data.Players) ? data.Players : [];
+                const emergencyCalls = Array.isArray(data.EmergencyCalls) ? data.EmergencyCalls : [];
+                const serverName = data.ServerName || data.Name || data.Server || '--';
+                setERLCStatus('Connected', 'text-emerald-400', serverName, players.length, emergencyCalls.length);
+                {
+                    const fireEmsPlayers = players.filter(p => p.Team === 'Fire' || p.Team === 'EMS' || p.Team === 'Police' || p.Team === 'SDOT');
+                    const vehicles = Array.isArray(data.Vehicles) ? data.Vehicles : [];
+                    const getPlayerName = player => String(player.Player || player.Username || player.Name || '').split(':')[0];
+                    const getVehicleOwner = vehicle => String(vehicle.Owner || vehicle.Player || vehicle.Username || '').split(':')[0];
+                    const getVehicleName = vehicle => vehicle.Name || vehicle.Vehicle || vehicle.Model || 'Vehicle unavailable';
+                    const findVehicle = player => {
+                        const playerName = getPlayerName(player).toLowerCase();
+                        return vehicles.find(vehicle => getVehicleOwner(vehicle).toLowerCase() === playerName);
+                    };
+                    appState.activeUnits = fireEmsPlayers.map((player, index) => ({
+                        id: `${index}-${getPlayerName(player)}`,
+                        name: getPlayerName(player) || 'Unknown player',
+                        callsign: player.Callsign || player.CallSign || player.callsign || ''
+                    }));
+                    renderUnitPickers();
+                    document.getElementById('kpiActiveUnits').innerText = fireEmsPlayers.length;
+                    const unitsTable = document.getElementById('erlcUnitsTable');
+                    if (fireEmsPlayers.length === 0) {
+                        unitsTable.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-neutral-500 text-xs">No transportation or signal units currently active in-game.</td></tr>`;
+                    } else {
+                        unitsTable.innerHTML = fireEmsPlayers.map(p => `
+                            <tr class="hover:bg-neutral-900/50">
+                                <td class="py-2.5 px-3 font-medium text-white">${getPlayerName(p) || 'Unknown player'}</td>
+                                <td class="py-2.5 px-3 text-neutral-300">${p.Callsign || p.CallSign || p.callsign || '-'}</td>
+                                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-xs bg-neutral-800 text-neutral-300">${p.Team}</span></td>
+                                <td class="py-2.5 px-3 text-neutral-300">${findVehicle(p) ? getVehicleName(findVehicle(p)) : 'On foot'}</td>
+                                <td class="py-2.5 px-3 text-emerald-400 text-xs">On Duty</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (err) {
+                console.error('ERLC Sync Error:', err);
+                setERLCStatus('Offline / Error', 'text-red-400');
+                document.getElementById('kpiActiveUnits').innerText = '--';
+                document.getElementById('erlcUnitsTable').innerHTML = `<tr><td colspan="5" class="py-6 text-center text-red-400 text-xs">Unable to reach the live operations API.</td></tr>`;
+            } finally {
+                erlcSyncInFlight = false;
+            }
+        }
+
+        async function loadRecords() {
+            const response = await fetch('/api/records');
+            const records = await response.json();
+            appState.fires = records.filter(record => record.category === 'fire');
+            appState.medicals = records.filter(record => record.category === 'medical');
+            appState.fireSeq = Math.max(0, ...appState.fires.map(record => Number(record.id.replace(/\D/g, '')))) + 1;
+            appState.medSeq = Math.max(0, ...appState.medicals.map(record => Number(record.id.replace(/\D/g, '')))) + 1;
+            updateCaseNumberFields();
+            updateDashboard();
+            renderRecordsTable();
+        }
+
+        async function loadAuth() {
+            const response = await fetch('/api/auth/me');
+            const data = await response.json();
+            if (!data.user) {
+                window.location.assign('/login');
+                return;
+            }
+            appState.userId = data.user.id;
+            appState.userName = data.user.name;
+            document.getElementById('currentUserName').textContent = data.user.name;
+            document.getElementById('accountMenuName').textContent = data.user.name;
+            document.getElementById('accountAvatar')?.setAttribute('src', data.user.avatarUrl || 'https://tr.rbxcdn.com/30DAY-AvatarHeadshot-150-150-Png/150/150/AvatarHeadshot/Webp/noFilter');
+        }
+
+        async function publishRecord(record) {
+            const response = await fetch('/api/records', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(record)
+            });
+            if (response.status === 401) {
+                alert('Sign in with Roblox before publishing a record.');
+                return false;
+            }
+            if (!response.ok) {
+                const error = await response.json();
+                alert(error.error || 'Unable to publish this record.');
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>
