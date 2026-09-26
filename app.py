@@ -60,11 +60,19 @@ def login_required(handler):
 def is_sdot_team_member(user, players):
     user_id = str(user.get("id", ""))
     user_name = str(user.get("name", "")).casefold()
+    configured_team = "".join(character for character in SDOT_TEAM_NAME.casefold() if character.isalnum())
+    accepted_teams = {configured_team, "dot", "sdot"}
     for player in players:
-        if not isinstance(player, dict) or player.get("Team") != SDOT_TEAM_NAME:
+        if not isinstance(player, dict):
             continue
 
-        player_value = str(player.get("Player", ""))
+        player_team = "".join(
+            character for character in str(player.get("Team", "")).casefold() if character.isalnum()
+        )
+        if player_team not in accepted_teams:
+            continue
+
+        player_value = str(player.get("Player") or player.get("Username") or player.get("Name") or "")
         player_name, _, player_id = player_value.partition(":")
         known_id = str(player.get("UserId") or player.get("UserID") or player.get("id") or player_id)
         if (known_id and known_id == user_id) or player_name.casefold() == user_name:
@@ -291,6 +299,7 @@ def get_erlc_status():
 
         data = response.json()
         data["isSdotMember"] = is_sdot_team_member(current_user(), data.get("Players", []))
+        data["sdotTeamName"] = SDOT_TEAM_NAME
         return jsonify(data)
 
     except requests.exceptions.RequestException as e:

@@ -478,11 +478,12 @@
                                         <th class="py-2 px-3">Callsign</th>
                                         <th class="py-2 px-3">Team</th>
                                         <th class="py-2 px-3">Unit</th>
+                                        <th class="py-2 px-3">Location</th>
                                         <th class="py-2 px-3">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="erlcUnitsTable" class="divide-y divide-darkborder text-neutral-300">
-                                    <tr><td colspan="5" class="py-6 text-center text-neutral-500 text-xs">Connecting to the live city operations server...</td></tr>
+                                    <tr><td colspan="6" class="py-6 text-center text-neutral-500 text-xs">Connecting to the live city operations server...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -876,11 +877,15 @@
                 const serverName = data.ServerName || data.Name || data.Server || '--';
                 setERLCStatus('Connected', 'text-emerald-400', serverName, players.length, emergencyCalls.length);
                 {
-                    const fireEmsPlayers = players.filter(p => p.Team === 'Fire' || p.Team === 'EMS' || p.Team === 'Police' || p.Team === 'SDOT');
+                    const normalizeTeam = team => String(team || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+                    const configuredTeam = normalizeTeam(data.sdotTeamName || 'SDOT');
+                    const activeTeams = new Set(['fire', 'ems', 'police', 'dot', 'sdot', configuredTeam]);
+                    const fireEmsPlayers = players.filter(p => activeTeams.has(normalizeTeam(p.Team)));
                     const vehicles = Array.isArray(data.Vehicles) ? data.Vehicles : [];
                     const getPlayerName = player => String(player.Player || player.Username || player.Name || '').split(':')[0];
                     const getVehicleOwner = vehicle => String(vehicle.Owner || vehicle.Player || vehicle.Username || '').split(':')[0];
                     const getVehicleName = vehicle => vehicle.Name || vehicle.Vehicle || vehicle.Model || 'Vehicle unavailable';
+                    const getPlayerLocation = player => player.Location || player.location || 'Location unavailable';
                     const findVehicle = player => {
                         const playerName = getPlayerName(player).toLowerCase();
                         return vehicles.find(vehicle => getVehicleOwner(vehicle).toLowerCase() === playerName);
@@ -894,14 +899,15 @@
                     document.getElementById('kpiActiveUnits').innerText = fireEmsPlayers.length;
                     const unitsTable = document.getElementById('erlcUnitsTable');
                     if (fireEmsPlayers.length === 0) {
-                        unitsTable.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-neutral-500 text-xs">No transportation or signal units currently active in-game.</td></tr>`;
+                        unitsTable.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-500 text-xs">No transportation or signal units currently active in-game.</td></tr>`;
                     } else {
                         unitsTable.innerHTML = fireEmsPlayers.map(p => `
                             <tr class="hover:bg-neutral-900/50">
-                                <td class="py-2.5 px-3 font-medium text-white">${getPlayerName(p) || 'Unknown player'}</td>
-                                <td class="py-2.5 px-3 text-neutral-300">${p.Callsign || p.CallSign || p.callsign || '-'}</td>
-                                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-xs bg-neutral-800 text-neutral-300">${p.Team}</span></td>
-                                <td class="py-2.5 px-3 text-neutral-300">${findVehicle(p) ? getVehicleName(findVehicle(p)) : 'On foot'}</td>
+                                <td class="py-2.5 px-3 font-medium text-white">${escapeHtml(getPlayerName(p) || 'Unknown player')}</td>
+                                <td class="py-2.5 px-3 text-neutral-300">${escapeHtml(p.Callsign || p.CallSign || p.callsign || '-')}</td>
+                                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-xs bg-neutral-800 text-neutral-300">${escapeHtml(p.Team || '-')}</span></td>
+                                <td class="py-2.5 px-3 text-neutral-300">${escapeHtml(findVehicle(p) ? getVehicleName(findVehicle(p)) : 'On foot')}</td>
+                                <td class="py-2.5 px-3 text-neutral-300">${escapeHtml(getPlayerLocation(p))}</td>
                                 <td class="py-2.5 px-3 text-emerald-400 text-xs">On Duty</td>
                             </tr>
                         `).join('');
